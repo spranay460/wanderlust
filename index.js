@@ -14,6 +14,7 @@ const listingRoute = require("./routes/listings.js");
 const reviewRoute = require("./routes/reviews.js");
 const userRoute = require("./routes/users.js")
 const session = require("express-session");
+const MongoStore = require("connect-mongo");
 const flash = require("connect-flash");
 const passport = require('passport');
 const LocalStrategy = require('passport-local');
@@ -29,6 +30,7 @@ const dbUrl = process.env.ATLASDB_URL;
 async function main(){
     await mongoose.connect(dbUrl);
 }
+
 main().then(()=>{
     console.log("connected to wanderlust db");
 }).catch((err)=>{
@@ -41,8 +43,21 @@ passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
+const store = MongoStore.create({
+    mongoUrl:dbUrl,
+    crypto:{
+        secret:process.env.SECRET,
+    },
+    touchAfter: 24 * 3600,
+})
+
+store.on("error", ()=>{
+    console.log("error in mongo session store", err);
+})
+
 const sessionOptions = {
-        secret: 'bigsecret',
+        store,
+        secret: process.env.SECRET,
         resave: false,
         saveUninitialized: true,
         cookie:{
